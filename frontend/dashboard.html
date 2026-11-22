@@ -29,7 +29,8 @@
           <span class="user-profile-name" id="user-name-display">User</span>
           <span class="user-profile-role">Active Account</span>
         </div>
-        <button type="button" class="btn-profile-edit" title="Edit Profile" onclick="event.stopPropagation(); openEditProfileModal();">
+        <button type="button" class="btn-profile-edit" title="Edit Profile"
+          onclick="event.stopPropagation(); openEditProfileModal();">
           ✏️ Edit Profile
         </button>
       </div>
@@ -106,14 +107,13 @@
         <div class="ai-quick-brand">
           <span class="ai-sparkle-icon">✨</span>
           <span class="ai-quick-title">Smart Task Scheduler</span>
-          <span class="ai-badge">Gemini AI</span>
         </div>
 
         <div class="ai-quick-controls">
           <div class="ai-control-pill" title="Select task difficulty or let AI calculate">
             <label for="ai-quick-difficulty" class="control-pill-label">Difficulty:</label>
             <select id="ai-quick-difficulty" class="control-pill-select">
-              <option value="Auto">✨ Auto (AI)</option>
+              <option value="Auto">✨ Auto</option>
               <option value="High">🔴 High Priority</option>
               <option value="Medium">🟡 Medium</option>
               <option value="Low">🟢 Low</option>
@@ -122,7 +122,8 @@
 
           <div class="ai-control-pill" title="Choose completion deadline or leave blank for AI estimate">
             <label for="ai-quick-date" class="control-pill-label">Target Date:</label>
-            <input type="date" id="ai-quick-date" class="control-pill-date" title="Leave blank for smart date calculation">
+            <input type="date" id="ai-quick-date" class="control-pill-date"
+              title="Leave blank for smart date calculation">
           </div>
         </div>
       </div>
@@ -130,8 +131,7 @@
       <div class="ai-quick-input-row">
         <div class="ai-input-wrapper">
           <span class="ai-input-glow-icon">🪄</span>
-          <input type="text" id="ai-quick-input" class="ai-quick-input"
-            placeholder="Describe any task in natural language... (e.g. 'Deploy Docker container to Kubernetes by Friday')">
+          <input type="text" id="ai-quick-input" class="ai-quick-input" placeholder="Describe any task">
         </div>
         <button id="ai-quick-submit-btn" class="btn btn-ai" onclick="handleAiQuickAdd()">
           <span id="ai-quick-spinner" class="spinner-small" style="display: none;"></span>
@@ -144,7 +144,8 @@
     <section class="glass-panel controls-bar">
       <div class="search-box">
         <span class="search-icon">🔍</span>
-        <input type="text" id="search-input" class="form-control" placeholder="Search tasks by title, checklist, or tags...">
+        <input type="text" id="search-input" class="form-control"
+          placeholder="Search tasks by title, checklist, or tags...">
       </div>
 
       <div class="filter-group">
@@ -194,11 +195,11 @@
             <label class="form-label" for="task-title-input" style="margin-bottom: 0;">Task Title *</label>
             <button type="button" class="btn-ai-outline" id="ai-breakdown-btn" onclick="triggerAiBreakdown()">
               <span id="ai-breakdown-spinner" class="spinner-small" style="display: none;"></span>
-              <span>✨ Gemini Breakdown</span>
+              <span>✨ Smart Breakdown</span>
             </button>
           </div>
-          <input type="text" id="task-title-input" class="form-control" placeholder="e.g. Set up CI/CD pipeline with GitHub Actions"
-            required maxlength="120">
+          <input type="text" id="task-title-input" class="form-control"
+            placeholder="e.g. Set up CI/CD pipeline with GitHub Actions" required maxlength="120">
         </div>
 
         <!-- AI Breakdown Preview Box (Hidden by default) -->
@@ -216,7 +217,8 @@
         <div class="form-group" style="margin-top: 1rem;">
           <label class="form-label" for="task-desc-input">Description & Actionable Checklist</label>
           <textarea id="task-desc-input" class="form-control"
-            placeholder="Add objectives, markdown checklist (- [ ] Item), or notes..." rows="5" maxlength="2000"></textarea>
+            placeholder="Add objectives, markdown checklist (- [ ] Item), or notes..." rows="5"
+            maxlength="2000"></textarea>
         </div>
 
         <div class="form-row">
@@ -267,14 +269,16 @@
         <div class="profile-avatar-banner">
           <div class="profile-big-avatar" id="profile-avatar-preview">U</div>
           <div class="profile-meta-text">
-            <h4 id="profile-preview-name" style="color: var(--text-main); margin-bottom: 0.2rem; font-size: 1.1rem;">User</h4>
+            <h4 id="profile-preview-name" style="color: var(--text-main); margin-bottom: 0.2rem; font-size: 1.1rem;">
+              User</h4>
             <p id="profile-preview-email" style="color: var(--text-muted); font-size: 0.85rem;">user@example.com</p>
           </div>
         </div>
 
         <div class="form-group" style="margin-top: 1.25rem;">
           <label class="form-label" for="profile-name-input">Full Name *</label>
-          <input type="text" id="profile-name-input" class="form-control" required maxlength="50" placeholder="Your name">
+          <input type="text" id="profile-name-input" class="form-control" required maxlength="50"
+            placeholder="Your name">
         </div>
 
         <div class="form-group">
@@ -290,12 +294,14 @@
 
           <div class="form-group">
             <label class="form-label" for="profile-current-password">Current Password</label>
-            <input type="password" id="profile-current-password" class="form-control" placeholder="Required only if changing password">
+            <input type="password" id="profile-current-password" class="form-control"
+              placeholder="Required only if changing password">
           </div>
 
           <div class="form-group">
             <label class="form-label" for="profile-new-password">New Password</label>
-            <input type="password" id="profile-new-password" class="form-control" placeholder="At least 6 characters" minlength="6">
+            <input type="password" id="profile-new-password" class="form-control" placeholder="At least 6 characters"
+              minlength="6">
           </div>
         </div>
 
@@ -323,7 +329,7 @@
 
       <div id="briefing-loading" style="text-align: center; padding: 2.5rem 1rem;">
         <div class="spinner-small" style="width: 28px; height: 28px; margin-bottom: 1rem;"></div>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">Gemini is analyzing your sprint priorities...</p>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">Analyzing task priorities...</p>
       </div>
 
       <div id="briefing-body" style="display: none; padding-top: 0.5rem;">

@@ -5,7 +5,7 @@ const { GoogleGenAI } = require('@google/genai');
  */
 function getGenAIClient() {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey.trim() === '' || apiKey.includes('your_gemini_api_key')) {
+  if (!apiKey || apiKey.trim() === '' || apiKey.includes('your_gemini_api_key') || !apiKey.startsWith('AIzaSy')) {
     return null;
   }
   return new GoogleGenAI({ apiKey });
@@ -63,6 +63,40 @@ Respond ONLY with valid JSON (no markdown formatting, no code fences):
 }
 
 /**
+ * Helper to parse explicit calendar dates like "25th Nov", "Nov 25", "25 November"
+ */
+function parseExplicitDate(text) {
+  if (!text || typeof text !== 'string') return null;
+
+  const months = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+  const pad = (n) => String(n).padStart(2, '0');
+  const now = new Date();
+  const year = now.getFullYear();
+
+  // Pattern 1: "25th Nov", "25 November", "on 25th Nov"
+  const p1 = /\b(?:on|by|at)?\s*(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?:\s+(\d{4}))?\b/i;
+  let m = text.match(p1);
+  if (m) {
+    const day = parseInt(m[1], 10);
+    const month = months[m[2].toLowerCase().slice(0, 3)];
+    const yr = m[3] ? parseInt(m[3], 10) : year;
+    return `${yr}-${pad(month)}-${pad(day)}`;
+  }
+
+  // Pattern 2: "Nov 25th", "November 25", "on Nov 25"
+  const p2 = /\b(?:on|by|at)?\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?\b/i;
+  m = text.match(p2);
+  if (m) {
+    const month = months[m[1].toLowerCase().slice(0, 3)];
+    const day = parseInt(m[2], 10);
+    const yr = m[3] ? parseInt(m[3], 10) : year;
+    return `${yr}-${pad(month)}-${pad(day)}`;
+  }
+
+  return null;
+}
+
+/**
  * Helper to clean and format action titles, stripping out metadata tokens (priority, status, dates)
  */
 function cleanTaskTitle(rawText) {
@@ -89,13 +123,17 @@ function cleanTaskTitle(rawText) {
   cleaned = cleaned.replace(/\b(?:status\s*:?\s*)?(?:in[- ]progress|wip|doing|working on|actively working|completed|done|finished|pending|todo|to[- ]do)\b/gi, '');
   cleaned = cleaned.replace(/\bstatus\b/gi, '');
 
-  // 4. Strip date and schedule tokens
+  // 4. Strip explicit dates like "on 25th Nov", "by Nov 30", "25 November"
+  cleaned = cleaned.replace(/\b(?:on|by|at|due|for)?\s*\d{1,2}(?:st|nd|rd|th)?\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*(?:\s+\d{4})?\b/gi, '');
+  cleaned = cleaned.replace(/\b(?:on|by|at|due|for)?\s*(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}(?:st|nd|rd|th)?(?:\s+\d{4})?\b/gi, '');
+
+  // 5. Strip relative date tokens
   cleaned = cleaned.replace(/\b(?:due\s*(?:date|on|by)?\s*:?\s*)?(?:today|tonight|tomorrow|yesterday|eod|end of day)\b/gi, '');
   cleaned = cleaned.replace(/\b(?:by|on|before|until|for)\s+(?:today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next\s+week|this\s+week|eod)\b/gi, '');
   cleaned = cleaned.replace(/\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, '');
   cleaned = cleaned.replace(/\b(?:next\s+week|this\s+week)\b/gi, '');
 
-  // 5. Strip dangling prepositions, conjunctions, punctuation, and leading prefixes
+  // 6. Strip dangling prepositions, conjunctions, punctuation, and leading prefixes
   cleaned = cleaned
     .replace(/\s+(?:by|on|at|due|with|for|in|to|and|is|as)\s*$/gi, '')
     .replace(/^(?:task|todo|to-do|reminder):\s*/gi, '')
@@ -105,7 +143,7 @@ function cleanTaskTitle(rawText) {
 
   if (!cleaned) cleaned = rawText.trim();
 
-  // 6. Convert to polished Title Case
+  // 7. Convert to polished Title Case
   const minorWords = new Set(['a', 'an', 'the', 'and', 'but', 'or', 'for', 'nor', 'on', 'at', 'to', 'from', 'by', 'in', 'of']);
   const words = cleaned.split(' ');
   const formattedWords = words.map((word, idx) => {
@@ -123,77 +161,107 @@ function cleanTaskTitle(rawText) {
 }
 
 /**
- * Generate rich domain-tailored objective, checklist, and acceptance criteria
+ * Generate natural, real human-like descriptions without robotic corporate buzzwords
  */
-function generateBestObjectiveAndChecklist(title, priority, dueDate, status) {
-  const isCapstone = /capstone|thesis|dissertation|viva|rubric|faculty|submission|submit.*project|final.*project/i.test(title);
-  const isDevOps = /docker|k8s|kubernetes|jenkins|pipeline|ci\/cd|terraform|ansible|helm|cloud|aws|deploy|infra|container/i.test(title);
-  const isBug = /fix|bug|error|issue|crash|patch|hotfix|leak|failure/i.test(title);
-  const isTest = /test|jest|unit|integration|coverage|cypress|smoke|e2e/i.test(title);
-  const isUI = /frontend|ui|ux|css|html|dashboard|modal|theme|styling|responsive/i.test(title);
+function generateHumanDescription(title, rawInput) {
+  const t = (title || '').toLowerCase();
+  const raw = (rawInput || '').toLowerCase();
 
-  let summary = '';
-  let steps = [];
-  let acceptanceCriteria = '';
-
-  if (isCapstone) {
-    summary = `Finalize, validate, and deliver all core deliverables for "${title}", ensuring clean code repositories, passing automated test suites, complete architecture documentation, and full readiness for faculty review and evaluation.`;
-    steps = [
-      `Synchronize git repository branches, clean up working tree, and tag production release`,
-      `Execute automated test suites (Jest/Supertest) and verify zero failing assertions`,
-      `Compile capstone project report, architecture diagrams, and milestone delivery summaries`,
-      `Dry-run live demonstration script covering REST API, AI features, Docker, and Kubernetes`,
-      `Package and submit project artifacts through the official evaluation portal`
+  // 1. Sports, Fitness, Outdoor, Games (Cricket, Gym, Football, etc.)
+  if (/cricket|football|soccer|gym|workout|badminton|run|running|exercise|swim|swimming|game|match|hike|trek|cycling|tennis|sports|practice/i.test(t) ||
+      /cricket|football|soccer|gym|workout/i.test(raw)) {
+    const sportName = t.includes('cricket') ? 'a cricket match' : t.toLowerCase();
+    const summary = `Head out for ${sportName}. Get the gear ready, coordinate with friends, and enjoy the game.`;
+    const steps = [
+      `Pack sports kit, gear, and a water bottle`,
+      `Confirm match timing and location with friends / team`,
+      `Warm up and stretch before starting`,
+      `Play the game and wrap up after`
     ];
-    acceptanceCriteria = `All capstone requirements, documentation, test reports, and live demonstration environments are verified, error-free, and submitted on time.`;
-  } else if (isDevOps) {
-    summary = `Architect, implement, and validate production-ready cloud-native automation for "${title}" to ensure reproducible, zero-downtime deployment.`;
-    steps = [
-      `Review environment configurations, security parameters, and dependency prerequisites`,
-      `Author and validate declarative infrastructure/container manifests and playbooks`,
-      `Run local container health probes and verify automated smoke test pass rates`,
-      `Integrate deployment validation and rolling update checks into the CI/CD pipeline`
-    ];
-    acceptanceCriteria = `Workload deploys cleanly, passes health checks on port 5050, and operates with zero manual intervention.`;
-  } else if (isBug) {
-    summary = `Isolate root cause, implement a verified code patch, and establish regression guards for "${title}" to restore platform stability.`;
-    steps = [
-      `Reproduce defect locally with isolated test fixtures and inspect stack traces`,
-      `Identify underlying failure mechanism across application logic and dependencies`,
-      `Implement minimal, clean code remediation conforming to security standards`,
-      `Execute full regression test suite (25 tests) and verify zero side-effects`
-    ];
-    acceptanceCriteria = `Defect is fully resolved, all regression tests pass with 100% success rate, and patch is staged for release.`;
-  } else if (isTest) {
-    summary = `Establish comprehensive, automated test coverage for "${title}" to guarantee behavioral correctness and prevent regressions.`;
-    steps = [
-      `Define positive, negative, and edge-case test specifications for target modules`,
-      `Implement isolated unit and integration test fixtures using mocks where appropriate`,
-      `Validate assertion coverage across asynchronous flows and error boundaries`,
-      `Confirm 100% test pass rate in CI/CD pipeline and local test runs`
-    ];
-    acceptanceCriteria = `All test suites pass cleanly with verifiable assertion coverage and zero flaky tests.`;
-  } else if (isUI) {
-    summary = `Design, build, and polish user interface components for "${title}" with responsive glassmorphism styling, accessibility, and smooth interactions.`;
-    steps = [
-      `Implement markup structure, responsive layout, and dark-theme glassmorphism styles`,
-      `Connect dynamic data binding and asynchronous API handlers`,
-      `Verify cross-browser responsiveness on mobile, tablet, and desktop viewports`,
-      `Test accessibility, keyboard focus states, and toast notification feedback`
-    ];
-    acceptanceCriteria = `UI components render cleanly, provide real-time visual feedback, and deliver a frictionless user experience.`;
-  } else {
-    summary = `Execute end-to-end delivery of "${title}" with focused technical precision, high user experience standards, and strict quality verification.`;
-    steps = [
-      `Define functional scope, target deliverables, and architectural prerequisites`,
-      `Execute primary implementation in structured, modular milestones`,
-      `Conduct comprehensive verification, edge-case testing, and error handling checks`,
-      `Document technical changes, record usage notes, and mark milestone complete`
-    ];
-    acceptanceCriteria = `Deliverable fulfills all defined functional requirements and passes technical verification.`;
+    return `${summary}\n\nKey Steps:\n${steps.map(s => `- [ ] ${s}`).join('\n')}`;
   }
 
-  return `### 🎯 Objective\n${summary}\n\n### 📋 Actionable Checklist\n${steps.map(s => `- [ ] ${s}`).join('\n')}\n\n### ✅ Acceptance Criteria\n${acceptanceCriteria}\n\n*Priority:* **${priority}** | *Status:* **${status}** | *Target Due:* **${dueDate || 'Flexible'}**`;
+  // 2. Capstone / Thesis / Major Academic Submission
+  if (/capstone|thesis|dissertation|viva|final.*project/i.test(t) || /capstone|thesis/i.test(raw)) {
+    const summary = `Finalize and submit the capstone project. Double-check all documentation, verify that the project runs cleanly, and ensure everything is ready for review.`;
+    const steps = [
+      `Review project checklist and rubric requirements`,
+      `Run test cases and verify the app and containers work smoothly`,
+      `Finalize project report, screenshots, and architecture diagrams`,
+      `Upload all deliverables and submit before the deadline`
+    ];
+    return `${summary}\n\nKey Steps:\n${steps.map(s => `- [ ] ${s}`).join('\n')}`;
+  }
+
+  // 3. Project / Assignment / Homework / General Submission
+  if (/submit|assignment|homework|project|presentation|report|deck|slides/i.test(t)) {
+    const summary = `Wrap up and submit ${title}. Review all requirements, verify deliverables, and make sure everything is turned in on time.`;
+    const steps = [
+      `Double-check assignment instructions and checklist`,
+      `Review all files, code, or report sections for any mistakes`,
+      `Save final changes and create a backup`,
+      `Submit on the portal and confirm successful upload`
+    ];
+    return `${summary}\n\nKey Steps:\n${steps.map(s => `- [ ] ${s}`).join('\n')}`;
+  }
+
+  // 4. Docker / Kubernetes / DevOps / Cloud / Deployment
+  if (/docker|k8s|kubernetes|container|pipeline|jenkins|terraform|ansible|deploy|cloud|aws|server|cluster/i.test(t)) {
+    const summary = `Set up and verify ${title}. Test everything locally first and make sure all services start cleanly without errors.`;
+    const steps = [
+      `Review configuration and required environment variables`,
+      `Build and run containers / manifests to verify behavior`,
+      `Check logs and test the health endpoints`,
+      `Commit clean changes and document quick run instructions`
+    ];
+    return `${summary}\n\nKey Steps:\n${steps.map(s => `- [ ] ${s}`).join('\n')}`;
+  }
+
+  // 5. Bug Fix / Coding / Development
+  if (/fix|bug|issue|error|feature|code|api|endpoint|auth|frontend|backend/i.test(t)) {
+    const summary = `Work on ${title}. Reproduce any issues, make the necessary code updates, and test to confirm it works properly.`;
+    const steps = [
+      `Check the error logs or reproduce the issue locally`,
+      `Implement the fix or feature cleanly`,
+      `Test to make sure nothing else broke`,
+      `Commit changes and push the update`
+    ];
+    return `${summary}\n\nKey Steps:\n${steps.map(s => `- [ ] ${s}`).join('\n')}`;
+  }
+
+  // 6. Study / Learning / DSA / LeetCode
+  if (/study|learn|read|book|course|leetcode|practice|dsa|problem|tutorial/i.test(t)) {
+    const summary = `Dedicate focused study time for ${title}. Work through the concepts and take notes on key takeaways.`;
+    const steps = [
+      `Go through the core concepts or problem statements`,
+      `Solve the problems or practice hands-on examples`,
+      `Note down key formulas or algorithmic patterns`,
+      `Quick recap to lock in what was learned`
+    ];
+    return `${summary}\n\nKey Steps:\n${steps.map(s => `- [ ] ${s}`).join('\n')}`;
+  }
+
+  // 7. Personal / Errands / Shopping / Health / Social
+  if (/buy|groceries|shopping|call|visit|meet|doctor|dentist|clean|tidy|pay|bills|bank|travel|pack|dinner|lunch/i.test(t)) {
+    const summary = `Get this errand sorted out: ${title}.`;
+    const steps = [
+      `Check what is needed and make a quick plan`,
+      `Head out or reach out at the scheduled time`,
+      `Complete the errand and keep receipts/confirmations if needed`,
+      `Cross it off the list`
+    ];
+    return `${summary}\n\nKey Steps:\n${steps.map(s => `- [ ] ${s}`).join('\n')}`;
+  }
+
+  // 8. Default / General Task
+  const summary = `Work on ${title}. Take care of the key details and follow through step by step.`;
+  const steps = [
+    `Gather what is needed and plan a quick approach`,
+    `Focus on the main work without distractions`,
+    `Review everything once done`,
+    `Mark task as completed`
+  ];
+  return `${summary}\n\nKey Steps:\n${steps.map(s => `- [ ] ${s}`).join('\n')}`;
 }
 
 /**
@@ -212,27 +280,25 @@ async function parseNaturalLanguageTask(options) {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
-  const prompt = `You are an elite agile engineering lead and productivity architect.
+  const prompt = `You are a helpful, natural personal assistant scheduling a task.
 The user wants to schedule a task from this raw input: "${text}"
-${userDifficulty && userDifficulty !== 'Auto' ? `User requested difficulty/priority: ${userDifficulty}` : ''}
+${userDifficulty && userDifficulty !== 'Auto' ? `User requested priority: ${userDifficulty}` : ''}
 ${userDueDate ? `User requested due date: ${userDueDate}` : ''}
 Today's Date: ${todayStr}
 
-CRITICAL RULES:
-1. Title: Crisp, clear action title (e.g. "Submit the Capstone Project" or "Configure Multi-Stage Docker Build").
-   IMPORTANT: You MUST REMOVE scheduling words (e.g. "tomorrow", "tomarrow", "today", "by Friday"), priority keywords ("priority high", "high priority", "urgent"), and status keywords ("in progress", "doing", "pending", "completed") from the title. NEVER include "priority high" or "in progress" in the title!
-2. Description: Do NOT write a trivial one-liner or merely repeat the raw input. Write an expert, structured Markdown description with:
-   - ### 🎯 Objective: 1-2 sentence executive summary of the true deliverable and value.
-   - ### 📋 Actionable Checklist: (- [ ] Step 1..., - [ ] Step 2..., - [ ] Step 3..., - [ ] Step 4...).
-   - ### ✅ Acceptance Criteria: Clear condition for successful sign-off.
-3. Priority: "High" | "Medium" | "Low". (Extract from input like "priority high", "urgent", or user difficulty).
-4. Status: "Pending" | "In Progress" | "Completed" (Extract from input like "in progress", "wip", "completed". Default: "Pending").
-5. Due Date: YYYY-MM-DD. (Calculate tomorrow/relative dates accurately based on Today: ${todayStr}).
+RULES:
+1. Title: Crisp, short action title in Title Case (e.g. "Play Cricket", "Submit Docker Project", "Submit the Capstone Project").
+   IMPORTANT: You MUST REMOVE scheduling words (e.g. "on 25th Nov", "tomorrow", "today", "by Friday"), priority words ("priority high", "urgent"), and status words ("in progress", "doing", "completed") from the title. NEVER include "on 25th Nov" or "priority high" in the title!
+2. Description: Write a REAL, NATURAL, HUMAN description (1-2 friendly sentences explaining the task, followed by 3-4 simple, realistic steps).
+   DO NOT use robotic corporate buzzwords like "execute end-to-end delivery", "focused technical precision", "high user experience standards", or "sanity verification". Keep it realistic, direct, and conversational, like a real person writing down their task.
+3. Priority: "High" | "Medium" | "Low". (Casual activities like games/cricket default to Medium/Low unless marked urgent).
+4. Status: "Pending" | "In Progress" | "Completed" (Default: "Pending").
+5. Due Date: YYYY-MM-DD. Calculate accurately (e.g. "on 25th Nov" = ${new Date().getFullYear()}-11-25).
 
 Respond ONLY with valid JSON (no markdown formatting, no code fences):
 {
   "title": "Clean Action Title",
-  "description": "Rich structured markdown description with objective, checklist, and criteria",
+  "description": "Real human summary\n\nKey Steps:\n- [ ] Step 1\n- [ ] Step 2\n- [ ] Step 3",
   "priority": "High | Medium | Low",
   "status": "In Progress | Pending | Completed",
   "dueDate": "YYYY-MM-DD"
@@ -412,7 +478,10 @@ function getMockNaturalLanguageParse(input) {
   let dueDate = userDueDate || null;
   const today = new Date();
   if (!dueDate) {
-    if (/\b(today|tonight|eod|end of day)\b/i.test(normalized)) {
+    const explicitDate = parseExplicitDate(raw);
+    if (explicitDate) {
+      dueDate = explicitDate;
+    } else if (/\b(today|tonight|eod|end of day)\b/i.test(normalized)) {
       dueDate = today.toISOString().split('T')[0];
     } else if (/\btomorrow\b/i.test(normalized)) {
       const tmrw = new Date(today);
@@ -446,8 +515,8 @@ function getMockNaturalLanguageParse(input) {
   // 4. Clean Action Title (extract clean title, stripping out priority, status, and date tokens)
   const title = cleanTaskTitle(raw);
 
-  // 5. Generate high-quality objective, checklist, and acceptance criteria
-  const formattedDescription = generateBestObjectiveAndChecklist(title, priority, dueDate, status);
+  // 5. Generate clean, natural human description
+  const formattedDescription = generateHumanDescription(title, raw);
 
   return {
     title,

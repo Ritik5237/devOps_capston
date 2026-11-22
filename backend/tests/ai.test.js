@@ -94,8 +94,8 @@ describe('Gemini AI Endpoints', () => {
       expect(res.body.data.title).toBe('Submit the Capstone Project');
       expect(res.body.data.priority).toBe('High');
       expect(res.body.data.status).toBe('In Progress');
-      expect(res.body.data.description).toContain('### 🎯 Objective');
-      expect(res.body.data.description).toContain('Submit the Capstone Project');
+      expect(res.body.data.description).toContain('Key Steps:');
+      expect(res.body.data.description).toContain('capstone project');
       expect(res.body.data.description).not.toContain('tomarrow priority high in progress');
     });
   });
