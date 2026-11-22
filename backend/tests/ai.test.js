@@ -80,7 +80,23 @@ describe('Gemini AI Endpoints', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data).toHaveProperty('title');
       expect(res.body.data.priority).toBe('High');
-      expect(res.body.data).toHaveProperty('dueDate');
+      expect(res.body.data.dueDate).toBeDefined();
+    });
+
+    it('should cleanly strip metadata and typos from title and generate rich objective', async () => {
+      const res = await request(app)
+        .post('/api/ai/parse-task')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ text: 'Submit the capstone project tomarrow priority high in progress' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.title).toBe('Submit the Capstone Project');
+      expect(res.body.data.priority).toBe('High');
+      expect(res.body.data.status).toBe('In Progress');
+      expect(res.body.data.description).toContain('### 🎯 Objective');
+      expect(res.body.data.description).toContain('Submit the Capstone Project');
+      expect(res.body.data.description).not.toContain('tomarrow priority high in progress');
     });
   });
 
