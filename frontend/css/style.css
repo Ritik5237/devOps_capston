@@ -1,5 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
+/* Design Tokens: Centralized colors, shadows, spacing, and transition variables */
 :root {
   --bg-primary: #0a0e17;
   --bg-secondary: #111827;
@@ -39,7 +39,7 @@
   padding: 0;
   box-sizing: border-box;
 }
-
+/* Global Page Styling: Defines the default typography, background, and text appearance */
 body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-primary);
@@ -380,7 +380,7 @@ textarea.form-control {
   justify-content: center;
   font-size: 1.5rem;
 }
-
+/* Task Statistics Colors: Assigns distinct visual indicators to each task status */
 .stat-icon.total { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
 .stat-icon.pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
 .stat-icon.in-progress { background: rgba(6, 182, 212, 0.15); color: #22d3ee; }
@@ -468,7 +468,7 @@ textarea.form-control {
   box-shadow: var(--shadow-lg);
   border-color: rgba(255, 255, 255, 0.15);
 }
-
+/* Priority Indicators: Uses color coding to distinguish task urgency levels */
 .task-card.priority-High { border-left-color: var(--accent-rose); }
 .task-card.priority-Medium { border-left-color: var(--accent-amber); }
 .task-card.priority-Low { border-left-color: var(--accent-emerald); }
@@ -582,7 +582,7 @@ textarea.form-control {
   z-index: 1000;
   padding: 1.5rem;
 }
-
+/* Modal Visibility: Displays the overlay when the active state is applied */
 .modal-overlay.active {
   display: flex;
 }
@@ -645,7 +645,7 @@ textarea.form-control {
   min-width: 280px;
   animation: toastSlide 0.3s ease-out;
 }
-
+/* Notification States: Differentiates success, error, and informational messages */
 .toast.success { border-left: 4px solid var(--accent-emerald); }
 .toast.error { border-left: 4px solid var(--accent-rose); }
 .toast.info { border-left: 4px solid var(--accent-primary); }
@@ -815,8 +815,7 @@ textarea.form-control {
   border-color: rgba(255, 255, 255, 0.25);
   color: #fff;
 }
-
-/* Key Metrics Bar */
+/* Landing Page Metrics: Organizes key project statistics into a responsive grid */
 .metrics-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -900,7 +899,7 @@ textarea.form-control {
   overflow: hidden;
   margin-top: 2rem;
 }
-
+/* Dashboard Preview: Creates the browser-style frame for the product showcase */
 .mockup-titlebar {
   display: flex;
   align-items: center;
@@ -1129,7 +1128,7 @@ textarea.form-control {
   flex-direction: column;
   gap: 2.5rem;
 }
-
+/* Pipeline Workflow: Structures the individual stages of the DevOps process */
 .pipeline-steps-flow {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -1250,7 +1249,7 @@ textarea.form-control {
   color: #10b981;
   font-weight: 700;
 }
-
+/* Pipeline Terminal: Styles the command-line preview inside the inspector panel */
 .inspector-terminal {
   background: #060911;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1593,7 +1592,7 @@ textarea.form-control {
   font-size: 0.85rem;
   color: var(--text-dim);
 }
-
+/* Tablet Layout Adjustments: Adapts showcase sections for medium-sized screens */
 @media (max-width: 992px) {
   .hero-title-main { font-size: 3rem; }
   .pipeline-inspector-panel { grid-template-columns: 1fr; }
